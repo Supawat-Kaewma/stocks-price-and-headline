@@ -1,0 +1,117 @@
+Collecting usage statistics. To deactivate, set browser.gatherUsageStats to false.
+
+
+  You can now view your Streamlit app in your browser.
+
+  URL: http://0.0.0.0:5000
+
+2024-09-11 04:49:32.972 Uncaught app exception
+Traceback (most recent call last):
+  File "/home/runner/AAPL-Historical-Chart-Analyzer/.pythonlibs/lib/python3.11/site-packages/streamlit/runtime/scriptrunner/exec_code.py", line 88, in exec_func_with_error_handling
+    result = func()
+             ^^^^^^
+  File "/home/runner/AAPL-Historical-Chart-Analyzer/.pythonlibs/lib/python3.11/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 590, in code_to_exec
+    exec(code, module.__dict__)
+  File "/home/runner/AAPL-Historical-Chart-Analyzer/main.py", line 170, in <module>
+    main()
+  File "/home/runner/AAPL-Historical-Chart-Analyzer/main.py", line 62, in main
+    create_stock_database()
+  File "/home/runner/AAPL-Historical-Chart-Analyzer/database.py", line 16, in create_stock_database
+    df = pd.read_html(f'https://en.wikipedia.org/wiki/List_of_companies_listed_on_the_{exchange}')[0]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/AAPL-Historical-Chart-Analyzer/.pythonlibs/lib/python3.11/site-packages/pandas/io/html.py", line 1240, in read_html
+    return _parse(
+           ^^^^^^^
+  File "/home/runner/AAPL-Historical-Chart-Analyzer/.pythonlibs/lib/python3.11/site-packages/pandas/io/html.py", line 983, in _parse
+    tables = p.parse_tables()
+             ^^^^^^^^^^^^^^^^
+  File "/home/runner/AAPL-Historical-Chart-Analyzer/.pythonlibs/lib/python3.11/site-packages/pandas/io/html.py", line 249, in parse_tables
+    tables = self._parse_tables(self._build_doc(), self.match, self.attrs)
+                                ^^^^^^^^^^^^^^^^^
+  File "/home/runner/AAPL-Historical-Chart-Analyzer/.pythonlibs/lib/python3.11/site-packages/pandas/io/html.py", line 806, in _build_doc
+    raise e
+  File "/home/runner/AAPL-Historical-Chart-Analyzer/.pythonlibs/lib/python3.11/site-packages/pandas/io/html.py", line 785, in _build_doc
+    with get_handle(
+         ^^^^^^^^^^^
+  File "/home/runner/AAPL-Historical-Chart-Analyzer/.pythonlibs/lib/python3.11/site-packages/pandas/io/common.py", line 728, in get_handle
+    ioargs = _get_filepath_or_buffer(
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/AAPL-Historical-Chart-Analyzer/.pythonlibs/lib/python3.11/site-packages/pandas/io/common.py", line 384, in _get_filepath_or_buffer
+    with urlopen(req_info) as req:
+         ^^^^^^^^^^^^^^^^^
+  File "/home/runner/AAPL-Historical-Chart-Analyzer/.pythonlibs/lib/python3.11/site-packages/pandas/io/common.py", line 289, in urlopen
+    return urllib.request.urlopen(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/f98g7xbckgqbkagdvpzc2r6lv3h1p9ki-python3-3.11.9/lib/python3.11/urllib/request.py", line 216, in urlopen
+    return opener.open(url, data, timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/f98g7xbckgqbkagdvpzc2r6lv3h1p9ki-python3-3.11.9/lib/python3.11/urllib/request.py", line 525, in open
+    response = meth(req, response)
+               ^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/f98g7xbckgqbkagdvpzc2r6lv3h1p9ki-python3-3.11.9/lib/python3.11/urllib/request.py", line 634, in http_response
+    response = self.parent.error(
+               ^^^^^^^^^^^^^^^^^^
+  File "/nix/store/f98g7xbckgqbkagdvpzc2r6lv3h1p9ki-python3-3.11.9/lib/python3.11/urllib/request.py", line 563, in error
+    return self._call_chain(*args)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/f98g7xbckgqbkagdvpzc2r6lv3h1p9ki-python3-3.11.9/lib/python3.11/urllib/request.py", line 496, in _call_chain
+    result = func(*args)
+             ^^^^^^^^^^^
+  File "/nix/store/f98g7xbckgqbkagdvpzc2r6lv3h1p9ki-python3-3.11.9/lib/python3.11/urllib/request.py", line 643, in http_error_default
+    raise HTTPError(req.full_url, code, msg, hdrs, fp)
+urllib.error.HTTPError: HTTP Error 404: Not Found
+2024-09-11 04:49:40.550 Uncaught app exception
+Traceback (most recent call last):
+  File "/home/runner/AAPL-Historical-Chart-Analyzer/.pythonlibs/lib/python3.11/site-packages/streamlit/runtime/scriptrunner/exec_code.py", line 88, in exec_func_with_error_handling
+    result = func()
+             ^^^^^^
+  File "/home/runner/AAPL-Historical-Chart-Analyzer/.pythonlibs/lib/python3.11/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 590, in code_to_exec
+    exec(code, module.__dict__)
+  File "/home/runner/AAPL-Historical-Chart-Analyzer/main.py", line 170, in <module>
+    main()
+  File "/home/runner/AAPL-Historical-Chart-Analyzer/main.py", line 62, in main
+    create_stock_database()
+  File "/home/runner/AAPL-Historical-Chart-Analyzer/database.py", line 16, in create_stock_database
+    df = pd.read_html(f'https://en.wikipedia.org/wiki/List_of_companies_listed_on_the_{exchange}')[0]
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/AAPL-Historical-Chart-Analyzer/.pythonlibs/lib/python3.11/site-packages/pandas/io/html.py", line 1240, in read_html
+    return _parse(
+           ^^^^^^^
+  File "/home/runner/AAPL-Historical-Chart-Analyzer/.pythonlibs/lib/python3.11/site-packages/pandas/io/html.py", line 983, in _parse
+    tables = p.parse_tables()
+             ^^^^^^^^^^^^^^^^
+  File "/home/runner/AAPL-Historical-Chart-Analyzer/.pythonlibs/lib/python3.11/site-packages/pandas/io/html.py", line 249, in parse_tables
+    tables = self._parse_tables(self._build_doc(), self.match, self.attrs)
+                                ^^^^^^^^^^^^^^^^^
+  File "/home/runner/AAPL-Historical-Chart-Analyzer/.pythonlibs/lib/python3.11/site-packages/pandas/io/html.py", line 806, in _build_doc
+    raise e
+  File "/home/runner/AAPL-Historical-Chart-Analyzer/.pythonlibs/lib/python3.11/site-packages/pandas/io/html.py", line 785, in _build_doc
+    with get_handle(
+         ^^^^^^^^^^^
+  File "/home/runner/AAPL-Historical-Chart-Analyzer/.pythonlibs/lib/python3.11/site-packages/pandas/io/common.py", line 728, in get_handle
+    ioargs = _get_filepath_or_buffer(
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/AAPL-Historical-Chart-Analyzer/.pythonlibs/lib/python3.11/site-packages/pandas/io/common.py", line 384, in _get_filepath_or_buffer
+    with urlopen(req_info) as req:
+         ^^^^^^^^^^^^^^^^^
+  File "/home/runner/AAPL-Historical-Chart-Analyzer/.pythonlibs/lib/python3.11/site-packages/pandas/io/common.py", line 289, in urlopen
+    return urllib.request.urlopen(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/f98g7xbckgqbkagdvpzc2r6lv3h1p9ki-python3-3.11.9/lib/python3.11/urllib/request.py", line 216, in urlopen
+    return opener.open(url, data, timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/f98g7xbckgqbkagdvpzc2r6lv3h1p9ki-python3-3.11.9/lib/python3.11/urllib/request.py", line 525, in open
+    response = meth(req, response)
+               ^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/f98g7xbckgqbkagdvpzc2r6lv3h1p9ki-python3-3.11.9/lib/python3.11/urllib/request.py", line 634, in http_response
+    response = self.parent.error(
+               ^^^^^^^^^^^^^^^^^^
+  File "/nix/store/f98g7xbckgqbkagdvpzc2r6lv3h1p9ki-python3-3.11.9/lib/python3.11/urllib/request.py", line 563, in error
+    return self._call_chain(*args)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nix/store/f98g7xbckgqbkagdvpzc2r6lv3h1p9ki-python3-3.11.9/lib/python3.11/urllib/request.py", line 496, in _call_chain
+    result = func(*args)
+             ^^^^^^^^^^^
+  File "/nix/store/f98g7xbckgqbkagdvpzc2r6lv3h1p9ki-python3-3.11.9/lib/python3.11/urllib/request.py", line 643, in http_error_default
+    raise HTTPError(req.full_url, code, msg, hdrs, fp)
+urllib.error.HTTPError: HTTP Error 404: Not Found

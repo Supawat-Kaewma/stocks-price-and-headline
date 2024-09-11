@@ -5,11 +5,8 @@ import plotly.graph_objects as go
 from newsapi.newsapi_client import NewsApiClient
 from datetime import datetime, timedelta
 import os
-import pytz
 import csv
-
-# Set page configuration
-st.set_page_config(page_title="AAPL Stock Price Chart with News Headlines", layout="wide")
+import requests
 
 # Initialize NewsApiClient
 NEWS_API_KEY = os.environ.get('NEWS_API_KEY')
@@ -34,154 +31,235 @@ def load_historical_news():
 
 historical_news_data = load_historical_news()
 
-# Function to fetch AAPL stock data
+# Function to fetch stock data
 @st.cache_data
-def get_stock_data():
-    try:
-        ticker = yf.Ticker("AAPL")
-        data = ticker.history(period="max")
-        if data.empty:
-            st.error("No data retrieved from yfinance. Please check your internet connection or try again later.")
-            return None
-        # Convert index to UTC
-        data.index = data.index.tz_convert('UTC')
-        return data
-    except Exception as e:
-        st.error(f"An error occurred while fetching stock data: {str(e)}")
-        return None
-
-# Function to fetch news headlines
-@st.cache_data
-def get_news_headlines(date):
-    if date < datetime(2014, 1, 1).date():
-        if date in historical_news_data:
-            article = historical_news_data[date]
-            return [{
-                'title': article['title'],
-                'description': article['description'],
-                'publishedAt': date.strftime('%Y-%m-%dT%H:%M:%SZ'),
-                'url': '#',  # No URL available for historical data
-                'source': {'name': 'Historical Data (Pre-2014)'}
-            }]
-        else:
-            st.info(f"No specific news available for {date}. Showing closest available news.")
-            closest_date = min(historical_news_data.keys(), key=lambda d: abs(d - date))
-            article = historical_news_data[closest_date]
-            return [{
-                'title': article['title'],
-                'description': article['description'],
-                'publishedAt': closest_date.strftime('%Y-%m-%dT%H:%M:%SZ'),
-                'url': '#',  # No URL available for historical data
-                'source': {'name': f'Historical Data (Pre-2014, Closest: {closest_date})'}
-            }]
-    else:
-        if not newsapi:
-            st.warning("NewsAPI client is not initialized. Cannot fetch news headlines.")
-            return []
-
-        end_date = date + timedelta(days=1)
+def get_stock_data(symbols):
+    data = {}
+    for symbol in symbols:
         try:
-            headlines = newsapi.get_everything(q='Apple',
-                                               from_param=date.strftime('%Y-%m-%d'),
-                                               to=end_date.strftime('%Y-%m-%d'),
-                                               language='en',
-                                               sort_by='relevancy',
-                                               page_size=5)
-            st.success(f"Successfully fetched {len(headlines['articles'])} news headlines.")
-            return [{
-                'title': article['title'],
-                'description': article['description'],
-                'publishedAt': article['publishedAt'],
-                'url': article['url'],
-                'source': article['source']
-            } for article in headlines['articles']]
+            ticker = yf.Ticker(symbol)
+            stock_data = ticker.history(period="max")
+            if not stock_data.empty:
+                stock_data.index = stock_data.index.tz_localize(None).tz_localize('UTC')
+                data[symbol] = stock_data
+            else:
+                st.warning(f"No data retrieved for {symbol}.")
         except Exception as e:
-            st.error(f"An error occurred while fetching news headlines: {str(e)}")
-            return []
+            st.warning(f"Error fetching data for {symbol}: {str(e)}")
+    return data
+
+# Function to calculate CAGR
+def calculate_cagr(start_value, end_value, num_years):
+    if num_years <= 0:
+        return 0
+    if start_value <= 0 or end_value <= 0:
+        return 0
+    return (end_value / start_value) ** (1 / num_years) - 1
+
+# Function to calculate annualized return for periods less than a year
+def calculate_annualized_return(start_value, end_value, num_days):
+    if num_days <= 0 or start_value <= 0 or end_value <= 0:
+        return 0
+    return ((end_value / start_value) ** (365.25 / num_days)) - 1
+
+# Function to format market cap
+def format_market_cap(value):
+    if value >= 1e12:
+        return f"{value / 1e12:.2f}T"
+    elif value >= 1e9:
+        return f"{value / 1e9:.2f}B"
+    elif value >= 1e6:
+        return f"{value / 1e6:.2f}M"
+    else:
+        return f"{value:.2f}"
+
+# Function to get start date based on selected timeframe
+def get_start_date(timeframe, end_date):
+    if end_date.tz is None:
+        end_date = end_date.tz_localize('UTC')
+    else:
+        end_date = end_date.tz_convert('UTC')
+    
+    if timeframe == '1 Day':
+        return end_date - pd.Timedelta(days=1)
+    elif timeframe == '7 Days':
+        return end_date - pd.Timedelta(days=7)
+    elif timeframe == 'MTD':
+        return end_date.replace(day=1)
+    elif timeframe == '6M':
+        return end_date - pd.Timedelta(days=180)
+    elif timeframe == 'YTD':
+        return end_date.replace(month=1, day=1)
+    elif timeframe == '1 Year':
+        return end_date - pd.Timedelta(days=365)
+    elif timeframe == '5 Years':
+        return end_date - pd.Timedelta(days=365*5)
+    elif timeframe == '10 Years':
+        return end_date - pd.Timedelta(days=365*10)
+    elif timeframe == '15 Years':
+        return end_date - pd.Timedelta(days=365*15)
+    elif timeframe == '20 Years':
+        return end_date - pd.Timedelta(days=365*20)
+    elif timeframe == 'Maximum':
+        return None
+    elif timeframe == 'Custom':
+        custom_date = st.date_input("Select start date", value=end_date.date() - timedelta(days=365))
+        return pd.Timestamp(custom_date).tz_localize('UTC')
 
 # Main app
 def main():
-    st.title("AAPL Stock Price Chart with News Headlines")
+    st.title("Stock Price Chart with News Headlines")
+
+    # Stock symbol selection
+    default_symbols = ['AAPL']
+    additional_symbols = st.multiselect(
+        "Select additional stocks to compare (max 3):",
+        ['GOOGL', 'MSFT', 'AMZN', 'FB', 'TSLA'],
+        max_selections=3
+    )
+    selected_symbols = default_symbols + additional_symbols
 
     # Fetch stock data
-    data = get_stock_data()
+    data = get_stock_data(selected_symbols)
 
-    if data is not None and not data.empty:
-        # Show date range of the fetched data
-        st.write(f"Data available from {min(data.index).date()} to {max(data.index).date()}")
+    # Timeframe selection
+    timeframes = ['1 Day', '7 Days', 'MTD', '6M', 'YTD', '1 Year', '5 Years', '10 Years', '15 Years', '20 Years', 'Maximum', 'Custom']
+    selected_timeframe = st.selectbox("Select timeframe", timeframes)
 
-        # Date range selector
-        col1, col2 = st.columns(2)
-        with col1:
-            start_date = st.date_input("Start date", max(data.index).date() - timedelta(days=365*40))
-        with col2:
-            end_date = st.date_input("End date", max(data.index).date())
-
-        # Add error handling for date range selection
-        if start_date > end_date:
-            st.error("Start date cannot be after end date. Please adjust your selection.")
-            return
-
-        # Convert date inputs to UTC datetime
-        start_datetime = pd.Timestamp(start_date).tz_localize('UTC')
-        end_datetime = pd.Timestamp(end_date).tz_localize('UTC') + timedelta(days=1) - timedelta(seconds=1)
-
-        # Filter data based on selected date range
-        mask = (data.index >= start_datetime) & (data.index <= end_datetime)
-        filtered_data = data.loc[mask]
-
-        # Create interactive chart
+    if data:
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=filtered_data.index, y=filtered_data['Close'], mode='lines', name='Close Price'))
-        fig.update_layout(title='AAPL Stock Price', xaxis_title='Date', yaxis_title='Price (USD)')
+        for symbol in selected_symbols:
+            if symbol in data:
+                stock_data = data[symbol]
+                end_date = stock_data.index[-1].tz_convert('UTC')
+                start_date = get_start_date(selected_timeframe, end_date)
+                
+                if start_date:
+                    filtered_data = stock_data.loc[start_date:]
+                else:
+                    filtered_data = stock_data
 
-        # Display the chart
+                fig.add_trace(go.Scatter(x=filtered_data.index, y=filtered_data['Close'], mode='lines', name=f'{symbol} Close Price'))
+
+                # Calculate performance percentage
+                start_price = filtered_data['Close'].iloc[0]
+                end_price = filtered_data['Close'].iloc[-1]
+                performance = ((end_price - start_price) / start_price) * 100
+
+                # Add annotation for performance percentage
+                fig.add_annotation(
+                    x=filtered_data.index[-1],
+                    y=end_price,
+                    text=f"{symbol}: {performance:.2f}%",
+                    showarrow=True,
+                    arrowhead=4,
+                    arrowsize=1,
+                    arrowwidth=2,
+                    arrowcolor="#636363",
+                    font=dict(size=12, color="green" if performance >= 0 else "red"),
+                    align="left",
+                    xanchor="right",
+                    yanchor="bottom"
+                )
+
+        fig.update_layout(title=f'Stock Price Comparison ({selected_timeframe})',
+                          xaxis_title='Date',
+                          yaxis_title='Price (USD)')
         st.plotly_chart(fig, use_container_width=True)
 
-        # Stock data preview
-        st.subheader("Stock Data Preview")
-        st.dataframe(filtered_data.head())
+        # Data Section
+        st.subheader("Data Section")
+        for symbol in selected_symbols:
+            if symbol in data:
+                stock_data = data[symbol]
+                end_date = stock_data.index[-1].tz_convert('UTC')
+                start_date = get_start_date(selected_timeframe, end_date)
+                
+                if start_date:
+                    filtered_data = stock_data.loc[start_date:]
+                else:
+                    filtered_data = stock_data
+
+                current_price = filtered_data['Close'].iloc[-1]
+                start_price = filtered_data['Close'].iloc[0]
+                
+                # Calculate price performance
+                performance = ((current_price - start_price) / start_price) * 100
+                
+                # Calculate CAGR or Annualized Return
+                start_date = filtered_data.index[0]
+                end_date = filtered_data.index[-1]
+                num_years = (end_date - start_date).days / 365.25
+                
+                if num_years < 1:
+                    num_days = (end_date - start_date).days
+                    annualized_return = calculate_annualized_return(start_price, current_price, num_days)
+                    cagr_label = f"Annualized Return ({selected_timeframe})"
+                    cagr_value = f"{annualized_return:.2%}"
+                else:
+                    cagr = calculate_cagr(start_price, current_price, num_years)
+                    cagr_label = f"CAGR ({selected_timeframe})"
+                    cagr_value = f"{cagr:.2%}"
+                
+                print(f"Debug - {symbol} ({selected_timeframe}): Start Date: {start_date}, End Date: {end_date}, Start Price: {start_price:.2f}, End Price: {current_price:.2f}, Num Years: {num_years:.4f}, CAGR/Annualized Return: {cagr_value}")
+                
+                # Get market cap
+                ticker = yf.Ticker(symbol)
+                market_cap = ticker.info.get('marketCap', 0)
+                formatted_market_cap = format_market_cap(market_cap)
+
+                st.markdown(f"**{symbol}**")
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric(label="Current Price", value=f"${current_price:.2f}")
+                with col2:
+                    st.metric(label="Price Performance", value=f"{performance:.2f}%")
+                with col3:
+                    st.metric(label=cagr_label, value=cagr_value)
+                with col4:
+                    st.metric(label="Market Cap", value=formatted_market_cap)
+                st.markdown("---")
 
         # Date selection for news headlines
         selected_date = st.date_input("Select a date to view news headlines", 
-                                      value=max(filtered_data.index).date(),
-                                      min_value=min(filtered_data.index).date(),
-                                      max_value=max(filtered_data.index).date())
+                                      value=datetime.now().date(),
+                                      min_value=datetime.now().date() - timedelta(days=30),
+                                      max_value=datetime.now().date())
 
         # Fetch and display news headlines
-        headlines = get_news_headlines(selected_date)
         st.subheader(f"News Headlines for {selected_date}")
-        if headlines:
-            for article in headlines:
-                title = article['title']
-                url = article.get('url', '#')
-                published_at = article.get('publishedAt', 'N/A')
-                if published_at != 'N/A':
-                    published_at = datetime.strptime(published_at, '%Y-%m-%dT%H:%M:%SZ').strftime('%Y-%m-%d %H:%M:%S')
-                
-                if url == '#':
-                    st.markdown(f"**{title}**")
-                    st.info("This is historical data (pre-2014). Original news link is not available.")
-                else:
-                    st.markdown(f"[**{title}**]({url})")
-                
-                st.write(f"Published on: {published_at}")
-                st.write(article.get('description', 'No description available'))
-                if 'source' in article and 'name' in article['source']:
-                    st.write(f"Source: {article['source']['name']}")
-                st.write("---")
-        else:
-            st.info("No news headlines available for the selected date.")
-    else:
-        st.error("Unable to display chart due to missing data.")
+        for symbol in selected_symbols:
+            headlines = get_news_headlines(symbol, selected_date)
+            if headlines:
+                st.markdown(f"**{symbol} News:**")
+                for article in headlines:
+                    st.markdown(f"[{article['title']}]({article['url']})")
+                    st.write(f"Published on: {article['publishedAt']}")
+                    st.write(article['description'])
+                    st.write("---")
+            else:
+                st.info(f"No news headlines available for {symbol} on the selected date.")
 
-    # Debug information
-    st.sidebar.subheader("Debug Information")
-    st.sidebar.write(f"NEWS_API_KEY set: {'Yes' if NEWS_API_KEY else 'No'}")
-    st.sidebar.write(f"NewsAPI client initialized: {'Yes' if newsapi else 'No'}")
-    st.sidebar.write(f"yfinance version: {yf.__version__}")
-    st.sidebar.write(f"pandas version: {pd.__version__}")
-    st.sidebar.write(f"pytz version: {pytz.__version__}")
+def get_news_headlines(symbol, date):
+    if not newsapi:
+        st.warning("NewsAPI client is not initialized. Cannot fetch news headlines.")
+        return []
+
+    end_date = date + timedelta(days=1)
+    try:
+        headlines = newsapi.get_everything(q=symbol,
+                                           from_param=date.strftime('%Y-%m-%d'),
+                                           to=end_date.strftime('%Y-%m-%d'),
+                                           language='en',
+                                           sort_by='relevancy',
+                                           page_size=5)
+        return headlines['articles']
+    except requests.exceptions.HTTPError as e:
+        st.error(f"HTTP Error occurred while fetching news for {symbol}: {e}")
+        return []
+    except Exception as e:
+        st.error(f"An error occurred while fetching news headlines for {symbol}: {str(e)}")
+        return []
 
 if __name__ == "__main__":
     main()
