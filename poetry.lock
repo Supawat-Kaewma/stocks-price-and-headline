@@ -682,13 +682,13 @@ requests = "*"
 
 [[package]]
 name = "newsapi-python"
-version = "0.2.7"
+version = "0.2.6"
 description = "An unofficial Python client for the News API"
 optional = false
 python-versions = "*"
 files = [
-    {file = "newsapi-python-0.2.7.tar.gz", hash = "sha256:a4b66d5dd9892198cdaa476f7542f2625cdd218e5e3121c8f880b2ace717a3c2"},
-    {file = "newsapi_python-0.2.7-py2.py3-none-any.whl", hash = "sha256:11d34013a24d92ca7b7cbdac84ed2d504862b1e22467bc2a9a6913a70962318e"},
+    {file = "newsapi-python-0.2.6.tar.gz", hash = "sha256:7308966c643a636f708583d358a2ccc481b21a10fdc6d31eb05130061afd4d77"},
+    {file = "newsapi_python-0.2.6-py2.py3-none-any.whl", hash = "sha256:71857f0bb86907c699f1ef4bfb9775facd10af87766af5f2e15f0d49f1a26cbc"},
 ]
 
 [package.dependencies]
@@ -1514,4 +1514,4 @@ repair = ["scipy (>=1.6.3)"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "813db4b4a0a840886da19535eb5489309b5de809062d2a54b290a4e55bd87d84"
+content-hash = "a902ccf6d1b16ca364bcc5dbab89cca966fc31c5fdd7162ebe1eb3d9a284e255"
