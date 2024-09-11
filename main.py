@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 import os
 import csv
 import requests
+import numpy as np
 
 # Initialize NewsApiClient
 NEWS_API_KEY = os.environ.get('NEWS_API_KEY')
@@ -40,7 +41,7 @@ def get_stock_data(symbols):
             ticker = yf.Ticker(symbol)
             stock_data = ticker.history(period="max")
             if not stock_data.empty:
-                stock_data.index = stock_data.index.tz_localize(None).tz_localize('UTC')
+                stock_data.index = stock_data.index.tz_localize(None)
                 data[symbol] = stock_data
             else:
                 st.warning(f"No data retrieved for {symbol}.")
@@ -75,11 +76,6 @@ def format_market_cap(value):
 
 # Function to get start date based on selected timeframe
 def get_start_date(timeframe, end_date):
-    if end_date.tz is None:
-        end_date = end_date.tz_localize('UTC')
-    else:
-        end_date = end_date.tz_convert('UTC')
-    
     if timeframe == '1 Day':
         return end_date - pd.Timedelta(days=1)
     elif timeframe == '7 Days':
@@ -104,17 +100,38 @@ def get_start_date(timeframe, end_date):
         return None
     elif timeframe == 'Custom':
         custom_date = st.date_input("Select start date", value=end_date.date() - timedelta(days=365))
-        return pd.Timestamp(custom_date).tz_localize('UTC')
+        return pd.Timestamp(custom_date)
+
+# New function to calculate Simple Moving Average (SMA)
+def calculate_sma(data, window):
+    return data['Close'].rolling(window=window).mean()
+
+# New function to calculate Exponential Moving Average (EMA)
+def calculate_ema(data, window):
+    return data['Close'].ewm(span=window, adjust=False).mean()
+
+# New function to calculate Relative Strength Index (RSI)
+def calculate_rsi(data, window):
+    delta = data['Close'].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
+    rs = gain / loss
+    return 100 - (100 / (1 + rs))
 
 # Main app
 def main():
-    st.title("Stock Price Chart with News Headlines")
+    st.title("Stock Price Chart with News Headlines and Technical Indicators")
 
     # Stock symbol selection
-    default_symbols = ['AAPL']
+    default_symbol = st.text_input("Enter the primary stock symbol", value='AAPL')
+    default_symbols = [default_symbol]
+    
+    # Add a note to inform users about changing the primary stock
+    st.info("To change the primary stock, enter a new stock symbol in the 'Enter the primary stock symbol' field and press Enter.")
+
     additional_symbols = st.multiselect(
         "Select additional stocks to compare (max 3):",
-        ['GOOGL', 'MSFT', 'AMZN', 'FB', 'TSLA'],
+        [symbol for symbol in ['GOOGL', 'MSFT', 'AMZN', 'FB', 'TSLA'] if symbol != default_symbol],
         max_selections=3
     )
     selected_symbols = default_symbols + additional_symbols
@@ -126,12 +143,15 @@ def main():
     timeframes = ['1 Day', '7 Days', 'MTD', '6M', 'YTD', '1 Year', '5 Years', '10 Years', '15 Years', '20 Years', 'Maximum', 'Custom']
     selected_timeframe = st.selectbox("Select timeframe", timeframes)
 
+    # Technical indicator selection
+    indicators = st.multiselect("Select technical indicators", ["SMA", "EMA", "RSI"], default=["SMA"])
+
     if data:
         fig = go.Figure()
         for symbol in selected_symbols:
             if symbol in data:
                 stock_data = data[symbol]
-                end_date = stock_data.index[-1].tz_convert('UTC')
+                end_date = stock_data.index[-1]
                 start_date = get_start_date(selected_timeframe, end_date)
                 
                 if start_date:
@@ -140,6 +160,19 @@ def main():
                     filtered_data = stock_data
 
                 fig.add_trace(go.Scatter(x=filtered_data.index, y=filtered_data['Close'], mode='lines', name=f'{symbol} Close Price'))
+
+                # Calculate and add technical indicators
+                if "SMA" in indicators:
+                    sma_20 = calculate_sma(filtered_data, 20)
+                    fig.add_trace(go.Scatter(x=filtered_data.index, y=sma_20, mode='lines', name=f'{symbol} 20-day SMA', line=dict(dash='dash')))
+
+                if "EMA" in indicators:
+                    ema_50 = calculate_ema(filtered_data, 50)
+                    fig.add_trace(go.Scatter(x=filtered_data.index, y=ema_50, mode='lines', name=f'{symbol} 50-day EMA', line=dict(dash='dot')))
+
+                if "RSI" in indicators:
+                    rsi_14 = calculate_rsi(filtered_data, 14)
+                    fig.add_trace(go.Scatter(x=filtered_data.index, y=rsi_14, mode='lines', name=f'{symbol} 14-day RSI', yaxis="y2"))
 
                 # Calculate performance percentage
                 start_price = filtered_data['Close'].iloc[0]
@@ -162,9 +195,13 @@ def main():
                     yanchor="bottom"
                 )
 
-        fig.update_layout(title=f'Stock Price Comparison ({selected_timeframe})',
-                          xaxis_title='Date',
-                          yaxis_title='Price (USD)')
+        fig.update_layout(
+            title=f'Stock Price Comparison ({selected_timeframe}) with Technical Indicators',
+            xaxis_title='Date',
+            yaxis_title='Price (USD)',
+            yaxis2=dict(title='RSI', overlaying='y', side='right', range=[0, 100]) if "RSI" in indicators else None,
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
         st.plotly_chart(fig, use_container_width=True)
 
         # Data Section
@@ -172,7 +209,7 @@ def main():
         for symbol in selected_symbols:
             if symbol in data:
                 stock_data = data[symbol]
-                end_date = stock_data.index[-1].tz_convert('UTC')
+                end_date = stock_data.index[-1]
                 start_date = get_start_date(selected_timeframe, end_date)
                 
                 if start_date:
@@ -200,8 +237,6 @@ def main():
                     cagr = calculate_cagr(start_price, current_price, num_years)
                     cagr_label = f"CAGR ({selected_timeframe})"
                     cagr_value = f"{cagr:.2%}"
-                
-                print(f"Debug - {symbol} ({selected_timeframe}): Start Date: {start_date}, End Date: {end_date}, Start Price: {start_price:.2f}, End Price: {current_price:.2f}, Num Years: {num_years:.4f}, CAGR/Annualized Return: {cagr_value}")
                 
                 # Get market cap
                 ticker = yf.Ticker(symbol)
