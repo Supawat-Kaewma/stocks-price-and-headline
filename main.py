@@ -31,16 +31,34 @@ def export_to_csv(df):
     return csv
 
 def export_news_to_csv(news_data):
-    df = pd.DataFrame(news_data, columns=['Headline', 'Published Date', 'Abstract', 'URL', 'Relevance'])
+    df = pd.DataFrame(news_data, columns=['Headline', 'Published Date', 'Abstract', 'URL'])
     csv = df.to_csv(index=False)
     return csv
 
 def get_company_name(symbol):
     try:
         ticker = yf.Ticker(symbol)
-        return ticker.info.get('longName', symbol)
-    except:
+        company_name = ticker.info.get('longName', symbol)
+        return company_name
+    except Exception as e:
+        print(f"Error fetching company name for {symbol}: {str(e)}")
         return symbol
+
+def fetch_news(symbol, historical_news_date, keyword=""):
+    url = f"https://api.nytimes.com/svc/search/v2/articlesearch.json"
+    search_query = keyword if keyword else get_company_name(symbol)
+    params = {
+        "api-key": NYT_API_KEY,
+        "q": search_query,
+        "begin_date": historical_news_date.strftime('%Y%m%d'),
+        "end_date": (historical_news_date + timedelta(days=1)).strftime('%Y%m%d'),
+        "sort": "relevance"
+    }
+    response = requests.get(url, params=params)
+    if response.status_code != 200:
+        st.error(f"Error fetching news: {response.status_code} - {response.text}")
+        return None
+    return response.json()
 
 def main():
     st.set_page_config(layout="wide")
@@ -122,8 +140,6 @@ def main():
         st.error("Unable to fetch data for any of the selected symbols. Please try again later or choose different symbols.")
         return
 
-    company_name = get_company_name(default_symbol)
-
     # Create and display the chart
     if data:
         with st.spinner('Creating chart...'):
@@ -163,14 +179,11 @@ def main():
                     arrowsize=1,
                     arrowwidth=2,
                     arrowcolor="#FFFFFF",
-                    font=dict(size=14, color="#FFFFFF", family="Arial Black"),
+                    font=dict(size=10, color="#FFFFFF", family="Arial"),
                     align="right",
                     xanchor="left",
                     yanchor="middle",
-                    bgcolor="rgba(0,0,0,0.8)",
-                    bordercolor="#FFFFFF",
-                    borderwidth=2,
-                    borderpad=4,
+                    bgcolor="rgba(0,0,0,0.5)",
                     opacity=0.8
                 )
 
@@ -234,43 +247,32 @@ def main():
     historical_news_date = st.date_input("Select a date for historical news", 
                                          min_value=datetime(1980, 1, 1).date(), 
                                          max_value=datetime.now().date(), 
-                                         value=start_date if isinstance(start_date, datetime) else datetime.now().date())
+                                         value=datetime.now().date())
+    keyword = st.text_input("Enter keyword for news search (optional)")
 
     try:
         with st.spinner('Fetching news headlines...'):
-            url = f"https://api.nytimes.com/svc/search/v2/articlesearch.json"
-            params = {
-                "api-key": NYT_API_KEY,
-                "q": company_name,
-                "begin_date": historical_news_date.strftime('%Y%m%d'),
-                "end_date": (historical_news_date + timedelta(days=1)).strftime('%Y%m%d'),
-                "sort": "relevance",
-                "fq": f"headline:({company_name}) OR body:({company_name})"
-            }
-            response = requests.get(url, params=params)
-            if response.status_code != 200:
-                st.error(f"Error fetching news: {response.status_code} - {response.text}")
-                return
-            data = response.json()
+            data = fetch_news(default_symbol, historical_news_date, keyword)
             
             if show_debug:
                 with debug_container.container():
                     st.text(f"Debug - API Response: {data}")
+                    st.text(f"Debug - Search query: {keyword if keyword else get_company_name(default_symbol)}")
+                    st.text(f"Debug - Date range: {historical_news_date.strftime('%Y-%m-%d')} to {(historical_news_date + timedelta(days=1)).strftime('%Y-%m-%d')}")
 
-            if 'response' in data and 'docs' in data['response']:
+            if data and 'response' in data and 'docs' in data['response']:
                 articles = data['response']['docs']
                 if articles:
                     news_data = []
                     for article in articles[:5]:  # Display up to 5 articles
                         headline = article['headline']['main'] if 'headline' in article and 'main' in article['headline'] else 'No headline available'
                         st.write(f"**{headline}**")
-                        st.write(f"Relevance: {article.get('_score', 'N/A')}")
                         st.write(f"Source: The New York Times")
                         st.write(f"Published at: {article.get('pub_date', 'Date not available')}")
                         st.write(article.get('abstract', 'No abstract available'))
                         st.write(f"[Read more]({article.get('web_url', '#')})")
                         st.write("---")
-                        news_data.append([headline, article.get('pub_date', 'Date not available'), article.get('abstract', 'No abstract available'), article.get('web_url', '#'), article.get('_score', 'N/A')])
+                        news_data.append([headline, article.get('pub_date', 'Date not available'), article.get('abstract', 'No abstract available'), article.get('web_url', '#')])
                     
                     # Export news data
                     st.subheader("Export News Data")
@@ -282,7 +284,7 @@ def main():
                         mime="text/csv"
                     )
                 else:
-                    st.info(f"No news found for {company_name} on {historical_news_date}. Try adjusting the date or check if the stock symbol is correct.")
+                    st.info(f"No news found for '{keyword if keyword else get_company_name(default_symbol)}' on {historical_news_date}. Try adjusting the date or modifying your search keyword.")
             else:
                 st.error(f"Unexpected API response format: {data}")
     except Exception as e:
